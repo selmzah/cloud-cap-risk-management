@@ -10,6 +10,7 @@ using { managed } from '@sap/cds/common';
     impact      : Integer;
     criticality : Integer;
     supplier    : Association to Suppliers;
+    partnerName : String(100);
   }
 
   entity Mitigations : managed {
@@ -26,4 +27,5 @@ using {  API_BUSINESS_PARTNER as bupa } from '../srv/external/API_BUSINESS_PARTN
         key BusinessPartner as ID,
         BusinessPartnerFullName as fullName,
         BusinessPartnerIsBlocked as isBlocked,
+        SearchTerm1 as searchTerm1
 }
