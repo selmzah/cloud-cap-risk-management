@@ -1,44 +1,72 @@
-# Welcome
+Doc : https://github.com/SAP-samples/btp-sac-forecast/tree/main/documentation
+# Cloud CAP Risk Management (POC)
 
-Welcome to this tutorial for application development on SAP Business Technology Platform (SAP BTP). We provide information and examples on how to develop and deploy an application based on [SAP Cloud Application Programming Model (CAP)](https://cap.cloud.sap/) on SAP BTP using different tools and services step by step.
+POC **Risk Management** sur **SAP BTP** (Cloud Foundry) basé sur **SAP Cloud Application Programming Model (CAP)**, **UI5 Fiori elements** et **HANA HDI container**.  
+L’application expose des risques (dataset historique) via CAP/OData, affiche des UI Fiori (Risks, Mitigations) et s’intègre à **SAP Build Work Zone**. Un **mock-server** remplace SAP S/4HANA pour l’API Business Partner.
 
-It's planned to provide multiple modules that are built upon each other. You can start the tutorial with the first module, or start in between, because the source code for every tutorial module is provided in this repository.
+> Référence générale SAP (exemples et tutoriels CAP/BTP) : [SAP-samples/cloud-cap-risk-management](https://github.com/SAP-samples/cloud-cap-risk-management/) — repo d’exemples (archivé, lecture seule).  
+> Ces exemples illustrent le packaging CAP+UI5+HANA et des déploiements CF/Kyma.  
+> ⚠️ Le présent repo (`selmzah/cloud-cap-risk-management`) contient **mon POC** adapté aux besoins (mock BUPA, Work Zone, etc.).
+  
+## Architecture
 
-## Download and Installation
+- **Backend** : CAP (Node.js), service `RiskService` (OData v4).
+- **Frontend** : UI5 Fiori elements (`nsrisks`, `nsmitigations`) packagées en HTML5 apps.
+- **Base de données** : **HDI container** (HANA service CF, plan `hdi-shared`) — pas d’instance HANA Cloud dédiée.
+- **Sécurité** : XSUAA (rôles `RiskManager`, `RiskViewer`).
+- **Connectivité ERP** : Destination **`cpapp-bupa`** pointant vers un **mock-server** S/4 BUPA.
+- **Work Zone** : exposé via **HTML5 Applications** (site Work Zone).
 
-If you want to start from a specific tutorial module, get the name of its branch from the [tutorial](http://sap-samples.github.io/cloud-cap-risk-management), download this repository and switch to the desired branch:
+## Décisions clés
 
-```bash
-git clone https://github.com/SAP-samples/cloud-cap-risk-management
-cd cloud-cap-risk-management
-git checkout ext-service-s4hc-use
-```
+- **Node.js buildpack CF** : épingle la version **Node 20.19.3** dans `package.json` →  
+  `"engines": { "node": "20.19.3" }`. Le buildpack n’expose plus Node 18.
+- **CAP build** : compat CAP v6 → forcer **`@sap/cds-dk@7`** dans le hook `before-all` du `mta.yaml`:  
+  `npx -p @sap/cds-dk@7 cds build --production`.
+- **S/4 API** : ressource `s4-hana-cloud / api-access` **désactivée** dans `mta.yaml` (commentée).  
+  En **production**, CAP lit via la **destination `cpapp-bupa`** (vers le mock).
+- **Données d’exemple** : CSV auto‑chargés par le **module DB deployer** au premier déploiement.  
+  > Si besoin de “livrer vide”, activer en fin de POC la suppression des CSV :  
+  > `npx rimraf gen/db/src/gen/data` (à éviter durant le POC sinon plus d’auto‑load).
 
-## Known Issues
+## Déploiement (Cloud Foundry)
 
-You can find the known issues [here](https://github.com/SAP-samples/cloud-cap-risk-management/issues).
+1. **Build CAP** (BAS)  
+   ```bash
+   npx -p @sap/cds-dk@7 cds build --production
+mbt build -t mta_archives
+cf login
+cf deploy mta_archives/<nom_fichier>.mtar
 
-## How to Obtain Support
+   Post‑deploy
 
-Check out the documentation for:
+Vérifier apps cpapp-srv, nsrisks, nsmitigations (cf apps).
+Dans le Subaccount BTP → HTML5 Applications → ouvrir les UI.
+(Option) Intégrer dans SAP Build Work Zone.
+Configuration
+package.json
+engines.node = "20.19.3" (aligné sur le Node.js buildpack CF).
+cds.requires.API_BUSINESS_PARTNER :
+[sandbox].credentials.url = URL du mock
+[production].credentials.destination = "cpapp-bupa".
+mta.yaml
+Hook build CAP : npx -p @sap/cds-dk@7 cds build --production
+Ressources : cpapp-db (hdi-shared), cpapp-uaa, cpapp-destination, cpapp-html5-repo-host, cpapp-logs.
+S/4 service commenté (usage du mock uniquement).
+Données
+Schéma HDI généré automatiquement (nom technique aléatoire).
+Tables CAP (générées) remplies par les CSV du projet au premier déploiement.
+L’UI Fiori lit via CAP ; Work Zone affiche les UI sans stocker de données.
+Rôles & Sécurité
+Rôles RiskManager (manage) et RiskViewer (view) provisionnés par XSUAA.
+Assigner les collections « RiskManager-<space> » et « RiskViewer-<space> » aux utilisateurs BTP.
+Dépannage (quick wins)
+Staging CF échoue avec Node 18 → fixer engines.node à une version supportée (ex : 20.19.3).
+Build CAP échoue (cds-dk incompatible) → utiliser @sap/cds-dk@7 avec CAP v6.
+Pas de données → vérifier que les CSV existent dans gen/db/src/gen/data et que le db-deployer s’est exécuté.
+Pas de lecture SQL directe → tables en HDI ; utiliser Database Explorer as HDI user ou les services OData CAP.
 
-* [CAP aka "capire"](https://cap.cloud.sap/docs/advanced/troubleshooting)
-* [SAP BTP](https://help.sap.com/viewer/product/CP/Cloud/)
+https://github.com/SAP-samples/btp-sac-forecast/tree/main/documentation
 
-In case you have a question, find a bug, or otherwise need support to use SAP products, use:
-
-* [CAP Community](https://answers.sap.com/tags/9f13aee1-834c-4105-8e43-ee442775e5ce)
-* [SAP Community](https://community.sap.com/)
-* [SAP BTP Support Components](https://help.sap.com/viewer/65de2977205c403bbc107264b8eccf4b/Cloud/en-US/08d1103928fb42f3a73b3f425e00e13c.html)
-
-If you face a problem with the example application or the description, feel free to create an [issue](https://github.com/SAP-samples/cloud-cap-risk-management/issues).
-
-## Contributing
-
-If you have suggestions on how to improve the tutorial, you are welcome to provide your input [here](https://github.com/SAP-samples/cloud-cap-risk-management/issues).
-
-## License
-
-[![REUSE status](https://api.reuse.software/badge/github.com/SAP-samples/cloud-cap-risk-management)](https://api.reuse.software/info/github.com/SAP-samples/cloud-cap-risk-management)
-
-Copyright (c) 2022 SAP SE or an SAP affiliate company. All rights reserved. This project is licensed under the Apache Software License, version 2.0 except as noted otherwise in the [LICENSE](LICENSES/Apache-2.0.txt) file.
+Licence
+Projet POC ; se base sur les concepts présentés par SAP (exemple public archivé). Voir licences applicables dans le repo SAP-samples si nécessaire.
