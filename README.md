@@ -1,4 +1,8 @@
 Doc : https://github.com/SAP-samples/btp-sac-forecast/tree/main/documentation
+
+<img width="682" height="317" alt="image" src="https://github.com/user-attachments/assets/e1d81660-839c-40ee-93f4-0e61a1cb65de" />
+
+
 # Cloud CAP Risk Management (POC)
 
 POC **Risk Management** sur **SAP BTP** (Cloud Foundry) basé sur **SAP Cloud Application Programming Model (CAP)**, **UI5 Fiori elements** et **HANA HDI container**.  
